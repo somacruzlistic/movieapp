@@ -1,14 +1,15 @@
 {
   "extends": [
-    "next/core-web-vitals",
-    "eslint:recommended"
+    "next/core-web-vitals"
   ],
   "rules": {
     "react/no-unescaped-entities": "off",
     "no-unused-vars": "warn",
     "no-console": "warn",
     "no-undef": "off",
-    "no-case-declarations": "off"
+    "no-case-declarations": "off",
+    "@next/next/no-img-element": "warn",
+    "react-hooks/exhaustive-deps": "warn"
   },
   "env": {
     "browser": true,
@@ -18,5 +19,6 @@
   },
   "globals": {
     "globalThis": "readonly"
-  }
+  },
+  "ignorePatterns": ["node_modules/", ".next/", "out/"]
 } 
