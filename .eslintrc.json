@@ -6,11 +6,17 @@
   "rules": {
     "react/no-unescaped-entities": "off",
     "no-unused-vars": "warn",
-    "no-console": "warn"
+    "no-console": "warn",
+    "no-undef": "off",
+    "no-case-declarations": "off"
   },
   "env": {
     "browser": true,
     "node": true,
-    "es6": true
+    "es6": true,
+    "es2020": true
+  },
+  "globals": {
+    "globalThis": "readonly"
   }
 } 
