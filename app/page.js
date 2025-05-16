@@ -340,14 +340,16 @@ export default function Home() {
     try {
       // Construct the base endpoint based on the section
       switch (sectionId) {
-        case 'popular-movies':
+        case 'popular-movies': {
           endpoint = `discover/movie?sort_by=popularity.desc&page=${state.page}`;
           break;
-        case 'upcoming-movies':
+        }
+        case 'upcoming-movies': {
           const today = new Date().toISOString().split('T')[0];
           endpoint = `discover/movie?sort_by=popularity.desc&primary_release_date.gte=${today}&page=${state.page}`;
           break;
-        case 'top-rated-movies':
+        }
+        case 'top-rated-movies': {
           // Use discover endpoint with vote_average sorting when filtering by genre
           if (genreId) {
             endpoint = `discover/movie?sort_by=vote_average.desc&vote_count.gte=1000&page=${state.page}`;
@@ -355,8 +357,10 @@ export default function Home() {
             endpoint = `movie/top_rated?page=${state.page}`;
           }
           break;
-        default:
+        }
+        default: {
           return;
+        }
       }
 
       // Add genre filter if a genre is selected
