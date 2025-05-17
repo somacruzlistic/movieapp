@@ -15,10 +15,12 @@
     "browser": true,
     "node": true,
     "es6": true,
-    "es2020": true
+    "es2020": true,
+    "es2021": true
   },
   "globals": {
-    "globalThis": "readonly"
+    "globalThis": "readonly",
+    "global": "readonly"
   },
   "ignorePatterns": ["node_modules/", ".next/", "out/"]
 } 
