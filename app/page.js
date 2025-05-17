@@ -345,6 +345,7 @@ export default function Home() {
           break;
         }
         case 'upcoming-movies': {
+          let endpoint;
           const today = new Date().toISOString().split('T')[0];
           endpoint = `discover/movie?sort_by=popularity.desc&primary_release_date.gte=${today}&page=${state.page}`;
           break;
