@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import MovieCard from './components/MovieCard';
 import GenreFilter from './components/GenreFilter';
 import { useSession, signIn, signOut } from 'next-auth/react';
@@ -9,10 +10,18 @@ import InfiniteMovieScroll from './components/InfiniteMovieScroll';
 import SearchBar from './components/SearchBar';
 import { useSearchParams } from 'next/navigation';
 
+// Dynamically import components that use browser APIs
+const DynamicInfiniteMovieScroll = dynamic(() => import('./components/InfiniteMovieScroll'), {
+  ssr: false,
+  loading: () => <div className="h-64 bg-gray-800 rounded animate-pulse"></div>
+});
+
 export default function Home() {
   const { data: session, status } = useSession();
-  const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-  const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+  const [apiKeys, setApiKeys] = useState({
+    tmdb: null,
+    youtube: null
+  });
   const searchParams = useSearchParams();
 
   const [userMovieLists, setUserMovieLists] = useState({
@@ -172,6 +181,12 @@ export default function Home() {
         }, 100);
       }
     }
+
+    // Load API keys on client side only
+    setApiKeys({
+      tmdb: process.env.NEXT_PUBLIC_TMDB_API_KEY,
+      youtube: process.env.NEXT_PUBLIC_YOUTUBE_API_KEY
+    });
 
     return () => {
       Object.keys(carousels).forEach((sectionId) => {
@@ -334,6 +349,11 @@ export default function Home() {
   };
 
   const fetchMoviesForSection = async (sectionId, reset = false, genreId = null) => {
+    if (!apiKeys.tmdb) {
+      console.error('TMDB API key not available');
+      return;
+    }
+
     const state = movieSectionState[sectionId];
     let endpoint = '';
 
@@ -345,13 +365,11 @@ export default function Home() {
           break;
         }
         case 'upcoming-movies': {
-          let endpoint;
           const today = new Date().toISOString().split('T')[0];
           endpoint = `discover/movie?sort_by=popularity.desc&primary_release_date.gte=${today}&page=${state.page}`;
           break;
         }
         case 'top-rated-movies': {
-          // Use discover endpoint with vote_average sorting when filtering by genre
           if (genreId) {
             endpoint = `discover/movie?sort_by=vote_average.desc&vote_count.gte=1000&page=${state.page}`;
           } else {
@@ -364,18 +382,11 @@ export default function Home() {
         }
       }
 
-      // Add genre filter if a genre is selected
       if (genreId) {
         endpoint += `&with_genres=${genreId}`;
       }
 
-      if (!TMDB_API_KEY) {
-        throw new Error('TMDb API key is missing.');
-      }
-
-      console.log(`Fetching ${sectionId} with endpoint:`, endpoint); // Debug log
-
-      const response = await fetch(`https://api.themoviedb.org/3/${endpoint}&api_key=${TMDB_API_KEY}`);
+      const response = await fetch(`https://api.themoviedb.org/3/${endpoint}&api_key=${apiKeys.tmdb}`);
       
       if (!response.ok) {
         throw new Error(`TMDb request failed: ${response.status}`);
@@ -429,6 +440,11 @@ export default function Home() {
   };
 
   const fetchBhutaneseMovies = async (query = '', pageToken = '', reset = false) => {
+    if (!apiKeys.youtube) {
+      console.error('YouTube API key not available');
+      return;
+    }
+
     const sectionId = 'bhutanese-movies';
     
     try {
@@ -439,7 +455,7 @@ export default function Home() {
 
       // Construct a more reliable search query
       const searchTerm = query || 'bhutanese movie dzongkha';
-      const searchURL = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&key=${YOUTUBE_API_KEY}&pageToken=${pageToken}&maxResults=10&videoDuration=long&regionCode=BT`;
+      const searchURL = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&key=${apiKeys.youtube}&pageToken=${pageToken}&maxResults=10&videoDuration=long&regionCode=BT`;
       
       console.log('Searching YouTube with URL:', searchURL); // Debug log
       
@@ -467,7 +483,7 @@ export default function Home() {
       }
 
       const videoIds = results.items.map(item => item.id.videoId).join(',');
-      const videoDetailsURL = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,statistics&id=${videoIds}&key=${YOUTUBE_API_KEY}`;
+      const videoDetailsURL = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,statistics&id=${videoIds}&key=${apiKeys.youtube}`;
       
       console.log('Fetching video details with URL:', videoDetailsURL); // Debug log
       
@@ -551,12 +567,12 @@ export default function Home() {
     if (!searchQuery) return;
 
     try {
-      if (!TMDB_API_KEY) {
+      if (!apiKeys.tmdb) {
         throw new Error('TMDb API key is missing');
       }
 
       console.log('Searching for:', searchQuery);
-      const searchUrl = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(searchQuery)}&api_key=${TMDB_API_KEY}`;
+      const searchUrl = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(searchQuery)}&api_key=${apiKeys.tmdb}`;
       console.log('Search URL:', searchUrl);
 
       const res = await fetch(searchUrl);
@@ -976,7 +992,7 @@ export default function Home() {
             <div className="space-y-12 mb-12">
               {/* Popular Movies */}
               <div ref={popularRef}>
-                <InfiniteMovieScroll
+                <DynamicInfiniteMovieScroll
                   movies={movieSectionState['popular-movies'].movies}
                   title="Popular Movies"
                   source="tmdb"
@@ -985,7 +1001,7 @@ export default function Home() {
 
               {/* Top Rated Movies */}
               <div ref={topRatedRef}>
-                <InfiniteMovieScroll
+                <DynamicInfiniteMovieScroll
                   movies={movieSectionState['top-rated-movies'].movies}
                   title="Top Rated Movies"
                   source="tmdb"
@@ -994,7 +1010,7 @@ export default function Home() {
 
               {/* Upcoming Movies */}
               <div ref={upcomingRef}>
-                <InfiniteMovieScroll
+                <DynamicInfiniteMovieScroll
                   movies={movieSectionState['upcoming-movies'].movies}
                   title="Upcoming Movies"
                   source="tmdb"
@@ -1008,7 +1024,7 @@ export default function Home() {
             <div className="space-y-12 mb-12">
               {/* Currently Watching */}
               <div ref={watchingRef}>
-                <InfiniteMovieScroll
+                <DynamicInfiniteMovieScroll
                   movies={movieSectionState['watching'].movies}
                   title="Currently Watching"
                   category="watching"
@@ -1019,7 +1035,7 @@ export default function Home() {
 
               {/* Will Watch */}
               <div ref={watchLaterRef}>
-                <InfiniteMovieScroll
+                <DynamicInfiniteMovieScroll
                   movies={movieSectionState['will-watch'].movies}
                   title="Watch Later"
                   category="will-watch"
@@ -1030,7 +1046,7 @@ export default function Home() {
 
               {/* Already Watched */}
               <div ref={alreadyWatchedRef}>
-                <InfiniteMovieScroll
+                <DynamicInfiniteMovieScroll
                   movies={movieSectionState['already-watched'].movies}
                   title="Already Watched"
                   category="already-watched"
@@ -1046,7 +1062,7 @@ export default function Home() {
             <div className="space-y-12 mb-12">
               {/* Popular Movies */}
               <div ref={popularRef}>
-                <InfiniteMovieScroll
+                <DynamicInfiniteMovieScroll
                   movies={movieSectionState['popular-movies'].movies}
                   title="Popular Movies"
                   source="tmdb"
@@ -1055,7 +1071,7 @@ export default function Home() {
 
               {/* Top Rated Movies */}
               <div ref={topRatedRef}>
-                <InfiniteMovieScroll
+                <DynamicInfiniteMovieScroll
                   movies={movieSectionState['top-rated-movies'].movies}
                   title="Top Rated Movies"
                   source="tmdb"
@@ -1064,7 +1080,7 @@ export default function Home() {
 
               {/* Upcoming Movies */}
               <div ref={upcomingRef}>
-                <InfiniteMovieScroll
+                <DynamicInfiniteMovieScroll
                   movies={movieSectionState['upcoming-movies'].movies}
                   title="Upcoming Movies"
                   source="tmdb"
@@ -1074,7 +1090,7 @@ export default function Home() {
               {/* Bhutanese Movies - Only show when no search is active */}
               {!bhutaneseSearchQuery && (
                 <div ref={bhutaneseMoviesRef}>
-                  <InfiniteMovieScroll
+                  <DynamicInfiniteMovieScroll
                     movies={movieSectionState['bhutanese-movies'].movies}
                     title="Bhutanese Movies"
                     source="youtube"
