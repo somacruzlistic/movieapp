@@ -121,6 +121,26 @@ export default function Home() {
     'search-results': useRef(null),
   };
 
+  // Load API keys only on the client side
+  useEffect(() => {
+    // Only access environment variables on the client side
+    if (typeof window !== 'undefined') {
+      const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+      const youtubeKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+      
+      console.log('Loading API keys on client side:', {
+        tmdb: tmdbKey ? 'present' : 'missing',
+        youtube: youtubeKey ? 'present' : 'missing',
+        nodeEnv: process.env.NODE_ENV
+      });
+
+      setApiKeys({
+        tmdb: tmdbKey,
+        youtube: youtubeKey
+      });
+    }
+  }, []);
+
   useEffect(() => {
     console.log('Session status:', status, 'Session:', session);
     if (status !== 'loading' && session) {
@@ -134,11 +154,15 @@ export default function Home() {
       };
       fetchAllUserMovies();
     }
-    if (status !== 'loading') {
+    if (status !== 'loading' && apiKeys.tmdb) {  // Only fetch if API key is available
       fetchMoviesForSection('popular-movies');
       fetchMoviesForSection('upcoming-movies');
       fetchMoviesForSection('top-rated-movies');
+    }
+    if (status !== 'loading' && apiKeys.youtube) {  // Only fetch if API key is available
       fetchBhutaneseMovies();
+    }
+    if (status !== 'loading') {
       Object.keys(carousels).forEach((sectionId) => {
         const carousel = carousels[sectionId].current;
         if (carousel) {
@@ -182,12 +206,6 @@ export default function Home() {
       }
     }
 
-    // Load API keys on client side only
-    setApiKeys({
-      tmdb: process.env.NEXT_PUBLIC_TMDB_API_KEY,
-      youtube: process.env.NEXT_PUBLIC_YOUTUBE_API_KEY
-    });
-
     return () => {
       Object.keys(carousels).forEach((sectionId) => {
         const carousel = carousels[sectionId].current;
@@ -198,7 +216,7 @@ export default function Home() {
       // Clean up event listener
       window.removeEventListener('showSignIn', handleShowSignIn);
     };
-  }, [status, session, searchParams]);
+  }, [status, session, searchParams, apiKeys]);
 
   const fetchUserMovies = async (sectionId, reset = false) => {
     try {
@@ -795,7 +813,8 @@ export default function Home() {
     }
   };
 
-  if (status === 'loading') {
+  // Add loading state for when API keys are not yet loaded
+  if (!apiKeys.tmdb || !apiKeys.youtube) {
     return (
       <div className="min-h-screen bg-black">
         <div className="animate-pulse">
